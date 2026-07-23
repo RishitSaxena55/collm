@@ -8,13 +8,29 @@ data:
   # MTCIR Paths (Stage 2)
   # image_dir: "/workspace/raid/cdsris/nav/data/mt_cir/images"
   # train_dataset_file: "/workspace/raid/cdsris/nav/data/mt_cir/annotations/train.jsonl"
+
+  # MTCIR Paths (Stage 2)
+  # image_dir: "/storage/users/anirban/shyam.marjit/nav/mt_cir/images"
+  # train_dataset_file: "/workspace/raid/cdsris/nav/data/mt_cir/annotations/train.jsonl"
+
+  # # Evaluation Paths (FashionIQ)
+  # eval_dataset_dir: "/home/anirban/shyam.marjit/nav/retrieval_data/fiq"
+  # eval_split: "val" # "val" or "test"
+
+  # # Active Paths
+  # image_dir: "/workspace/raid/cdsris/nav/data/LLaVA-Pretrain"
+  # train_dataset_file: "/workspace/raid/cdsris/nav/data/LLaVA-Pretrain/blip_laion_cc_sbu_558k_meta.json"
   
+  # # Evaluation Paths (FashionIQ)
+  # eval_dataset_dir: "/workspace/raid/cdsris/nav/data/fiq"
+  # eval_split: "val" # "val" or "test"
+
   # Active Paths
-  image_dir: "/workspace/raid/cdsris/nav/data/LLaVA-Pretrain"
-  train_dataset_file: "/workspace/raid/cdsris/nav/data/LLaVA-Pretrain/blip_laion_cc_sbu_558k_meta.json"
+  image_dir: "/storage/users/anirban/akhilsakthieswaran/pretrain_data/llava558k"
+  train_dataset_file: "/storage/users/anirban/akhilsakthieswaran/pretrain_data/llava558k/blip_laion_cc_sbu_558k_meta.json"
   
   # Evaluation Paths (FashionIQ)
-  eval_dataset_dir: "/workspace/raid/cdsris/nav/data/fiq"
+  eval_dataset_dir: "/home/anirban/shyam.marjit/nav/retrieval_data/fiq"
   eval_split: "val" # "val" or "test"
 
 training:
