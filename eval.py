@@ -66,7 +66,11 @@ def run_evaluation(config, vision_encoder, llm, adapter, device, transform):
     
     eval_dir = config['data']['eval_dataset_dir']
     eval_split = config['data']['eval_split']
-    image_dir = config['data']['image_dir']
+    
+    # Bug Fix: We must use the FIQ images directory for evaluation, 
+    # not the config['data']['image_dir'] which points to LLaVA or MTCIR!
+    image_dir = os.path.join(eval_dir, "images")
+    
     batch_size = config['training']['batch_size']
     
     classes = ["dress", "shirt", "toptee"]

@@ -1,7 +1,21 @@
 import torch
 import torch.nn as nn
 from abc import ABC, abstractmethod
-from transformers import CLIPVisionModel
+from transformers import CLIPVisionModel, BlipVisionModel
+
+class BLIPVisionEncoder(BaseVisionEncoder):
+    def __init__(self, model_name="Salesforce/blip-image-captioning-large", freeze=True, lora_adapter=None):
+        super().__init__(freeze)
+        self.model = BlipVisionModel.from_pretrained(model_name)
+        
+        if lora_adapter is not None:
+            self.model = lora_adapter.apply(self.model)
+        else:
+            self._apply_freezing()
+            
+    def forward(self, pixel_values):
+        outputs = self.model(pixel_values=pixel_values, return_dict=True)
+        return outputs.pooler_output
 
 class BaseVisionEncoder(nn.Module, ABC):
     def __init__(self, freeze=True):
@@ -53,6 +67,11 @@ class OpenCLIPVisionEncoder(BaseVisionEncoder):
         import open_clip
         model, _, _ = open_clip.create_model_and_transforms(model_name, pretrained=pretrained)
         self.model = model.visual
+        
+        # Remove projection to match HuggingFace CLIPVisionModel behavior (returns raw 1024 dim instead of 768)
+        if hasattr(self.model, 'proj'):
+            self.model.proj = None
+            
         self._apply_freezing()
         
     def forward(self, pixel_values):

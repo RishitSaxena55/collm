@@ -145,6 +145,15 @@ def main():
                 alpha=v_lora_cfg['alpha'], 
                 target_modules=v_lora_cfg['target_modules']
             ).to(device)
+    elif vision_model_name.startswith("blip:"):
+        from models.vision_encoder import BLIPVisionEncoder
+        model_name = vision_model_name.replace("blip:", "")
+        if v_lora_cfg.get('enable', False):
+            vision_lora = PEFTLoRA(r=v_lora_cfg['r'], lora_alpha=v_lora_cfg['alpha'], target_modules=v_lora_cfg['target_modules'], lora_dropout=v_lora_cfg['dropout'])
+        else:
+            vision_lora = None
+        vision_encoder = BLIPVisionEncoder(model_name=model_name, freeze=True, lora_adapter=vision_lora).to(device)
+        vision_dim = vision_encoder.model.config.hidden_size
     else:
         if v_lora_cfg.get('enable', False):
             vision_lora = PEFTLoRA(r=v_lora_cfg['r'], lora_alpha=v_lora_cfg['alpha'], target_modules=v_lora_cfg['target_modules'], lora_dropout=v_lora_cfg['dropout'])
