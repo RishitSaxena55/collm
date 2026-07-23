@@ -133,6 +133,18 @@ def main():
                 alpha=v_lora_cfg['alpha'], 
                 target_modules=v_lora_cfg['target_modules']
             ).to(device)
+    elif vision_model_name.startswith("open_clip:"):
+        from models.vision_encoder import OpenCLIPVisionEncoder
+        model_name, pretrained = vision_model_name.replace("open_clip:", "").split(",")
+        vision_encoder = OpenCLIPVisionEncoder(model_name=model_name, pretrained=pretrained, freeze=True).to(device)
+        vision_dim = vision_encoder.model.ln_pre.weight.shape[0] if hasattr(vision_encoder.model, "ln_pre") else 768
+        if v_lora_cfg.get('enable', False):
+            vision_encoder = apply_openclip_lora(
+                vision_encoder, 
+                r=v_lora_cfg['r'], 
+                alpha=v_lora_cfg['alpha'], 
+                target_modules=v_lora_cfg['target_modules']
+            ).to(device)
     else:
         if v_lora_cfg.get('enable', False):
             vision_lora = PEFTLoRA(r=v_lora_cfg['r'], lora_alpha=v_lora_cfg['alpha'], target_modules=v_lora_cfg['target_modules'], lora_dropout=v_lora_cfg['dropout'])
@@ -203,6 +215,7 @@ def main():
     start_epoch = 0
     steps_to_skip = 0
     
+    resumed_successfully = False
     resume_checkpoint = config['training'].get('resume_from_checkpoint')
     if resume_checkpoint and os.path.isfile(resume_checkpoint):
         print(f"Resuming from checkpoint: {resume_checkpoint}")
@@ -222,6 +235,7 @@ def main():
             steps_to_skip = global_step % len(dataloader)
             
             print(f"Resumed successfully. Fast-forwarding to Epoch {start_epoch+1}, Step {steps_to_skip}")
+            resumed_successfully = True
         except Exception as e:
             print(f"Failed to resume from checkpoint: {e}")
 
@@ -239,6 +253,18 @@ def main():
             name=run_name,
             config=config
         )
+        
+    # Zero-shot evaluation before training
+    if not resumed_successfully and global_step == 0:
+        accelerator.wait_for_everyone()
+        if accelerator.is_main_process:
+            print("\n--- Running Zero-Shot Evaluation before training ---")
+            metrics = run_evaluation(config, accelerator.unwrap_model(vision_encoder), 
+                                   accelerator.unwrap_model(llm), accelerator.unwrap_model(adapter), 
+                                   device, transform)
+            if wandb_enabled and metrics:
+                wandb.log({f"eval/{k}": v for k, v in metrics.items()}, step=global_step)
+            print("---------------------------------------------------\n")
         
     for epoch in range(start_epoch, config['training']['epochs']):
         for step, batch in enumerate(dataloader):

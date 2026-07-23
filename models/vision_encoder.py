@@ -47,16 +47,25 @@ class CLIPVisionEncoder(BaseVisionEncoder):
         outputs = self.model(pixel_values=pixel_values, return_dict=True)
         return outputs.pooler_output
 
+class OpenCLIPVisionEncoder(BaseVisionEncoder):
+    def __init__(self, model_name="ViT-L-14", pretrained="openai", freeze=True):
+        super().__init__(freeze)
+        import open_clip
+        model, _, _ = open_clip.create_model_and_transforms(model_name, pretrained=pretrained)
+        self.model = model.visual
+        self._apply_freezing()
+        
+    def forward(self, pixel_values):
+        self.model.output_tokens = False
+        pooled = self.model(pixel_values)
+        return pooled
+
 class CoCaVisionEncoder(BaseVisionEncoder):
     def __init__(self, freeze=True):
         super().__init__(freeze)
-        # We use a delayed import so open_clip is only required if coca is actually used
         import open_clip
-        
-        # Hardcoded to coca_ViT-L-14 and the LAION-2B checkpoint as requested
         model, _, _ = open_clip.create_model_and_transforms('coca_ViT-L-14', pretrained='laion2b_s13b_b90k')
         self.model = model.visual
-        
         self._apply_freezing()
         
     def forward(self, pixel_values):
