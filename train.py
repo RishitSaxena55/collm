@@ -132,7 +132,7 @@ def main():
                 r=v_lora_cfg['r'], 
                 alpha=v_lora_cfg['alpha'], 
                 target_modules=v_lora_cfg['target_modules']
-            )
+            ).to(device)
     else:
         if v_lora_cfg.get('enable', False):
             vision_lora = PEFTLoRA(r=v_lora_cfg['r'], lora_alpha=v_lora_cfg['alpha'], target_modules=v_lora_cfg['target_modules'], lora_dropout=v_lora_cfg['dropout'])
