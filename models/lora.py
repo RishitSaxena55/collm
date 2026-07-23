@@ -116,8 +116,8 @@ def apply_openclip_lora(model: nn.Module, r: int, alpha: int, target_modules: li
     target_out = "out_proj" in target_modules
     
     for name, module in model.named_modules():
-        # OpenCLIP Attention
-        if module.__class__.__name__ == "Attention":
+        # OpenCLIP Attention or PyTorch Native MultiheadAttention
+        if module.__class__.__name__ in ["Attention", "MultiheadAttention"]:
             if target_q or target_k or target_v:
                 # OpenCLIP fuses QKV into in_proj_weight
                 if hasattr(module, "in_proj_weight") and module.in_proj_weight is not None:
