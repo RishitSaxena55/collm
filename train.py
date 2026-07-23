@@ -262,9 +262,7 @@ def main():
                     h_star_i, w_star_i = synthesizer(v_prime_i, captions)
                     
                 visual_embeds = adapter(h_star_i)
-                c_composed = llm(visual_embeds=visual_embeds, text_list=w_star_i, modality="composed")
-                c_v = llm(visual_embeds=visual_embeds, text_list=None, modality="image_only")
-                c_w = llm(visual_embeds=None, text_list=captions, modality="text_only")
+                c_composed, c_v, c_w = llm(visual_embeds=visual_embeds, text_list=w_star_i, modality="stage1", text_list_text_only=captions)
                 
                 # Gather embeddings globally for InfoNCE loss
                 z_i = gather_embeddings(z_i)

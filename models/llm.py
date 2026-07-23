@@ -103,8 +103,58 @@ class SFREmbeddingLLM(BaseLLM):
         else:
             raise ValueError(f"Unknown modality: {modality}")
 
-    def forward(self, visual_embeds, text_list, modality="composed"):
-        # Determine batch size and device based on provided inputs
+    def forward(self, visual_embeds, text_list, modality="composed", text_list_text_only=None):
+        if modality == "stage1":
+            batch_size = visual_embeds.size(0)
+            device = visual_embeds.device
+            
+            if text_list is None:
+                text_list = [""] * batch_size
+            if text_list_text_only is None:
+                text_list_text_only = [""] * batch_size
+                
+            prompts = []
+            for t in text_list:
+                prompts.append(self._get_prompt(t, "composed"))
+            for _ in range(batch_size):
+                prompts.append(self._get_prompt("", "image_only"))
+            for t in text_list_text_only:
+                prompts.append(self._get_prompt(t, "text_only"))
+                
+            tokenized = self.tokenizer(prompts, padding=True, truncation=True, return_tensors="pt")
+            input_ids = tokenized.input_ids.to(device)
+            attention_mask = tokenized.attention_mask.to(device)
+            
+            inputs_embeds = self.llm.get_input_embeddings()(input_ids).clone()
+            
+            visual_embeds_stacked = torch.cat([visual_embeds, visual_embeds], dim=0)
+            visual_embeds_stacked = visual_embeds_stacked.to(inputs_embeds.dtype)
+            
+            for b_idx in range(batch_size * 2):
+                img_idx = (input_ids[b_idx] == self.image_token_id).nonzero(as_tuple=True)[0]
+                if len(img_idx) > 0:
+                    inputs_embeds[b_idx, img_idx[0]] = visual_embeds_stacked[b_idx]
+                    
+            outputs = self.llm(inputs_embeds=inputs_embeds, attention_mask=attention_mask, return_dict=True)
+            hidden_states = outputs.last_hidden_state
+            
+            left_padding = (attention_mask[:, -1].sum() == attention_mask.shape[0])
+            if left_padding:
+                pooled_embeds = hidden_states[:, -1]
+            else:
+                sequence_lengths = attention_mask.sum(dim=1) - 1
+                pooled_embeds = hidden_states[torch.arange(batch_size * 3, device=device), sequence_lengths]
+                
+            # We cast back to float32 to ensure contrastive loss stability
+            pooled_embeds = self.proj(pooled_embeds).to(torch.float32)
+            
+            c_composed = pooled_embeds[:batch_size]
+            c_v = pooled_embeds[batch_size:batch_size*2]
+            c_w = pooled_embeds[batch_size*2:]
+            
+            return c_composed, c_v, c_w
+
+        # Original logic for other modalities
         batch_size = visual_embeds.size(0) if visual_embeds is not None else len(text_list)
         device = visual_embeds.device if visual_embeds is not None else next(self.parameters()).device
         
