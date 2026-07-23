@@ -85,7 +85,7 @@ class OpenCLIPLoRAParametrization(nn.Module):
         
     def forward(self, W):
         delta = (self.lora_B @ self.lora_A) * self.scaling
-        return W + (delta * self.mask.to(W.device))
+        return W + (delta * self.mask)
 
 class StandardLoRAParametrization(nn.Module):
     def __init__(self, weight_shape, r=16, alpha=16):
@@ -126,14 +126,16 @@ def apply_openclip_lora(model: nn.Module, r: int, alpha: int, target_modules: li
                     param_lora = OpenCLIPLoRAParametrization(
                         module.in_proj_weight.shape, r=r, alpha=alpha, 
                         target_q=target_q, target_k=target_k, target_v=target_v
-                    )
+                    ).to(module.in_proj_weight.device)
                     parametrize.register_parametrization(module, "in_proj_weight", param_lora)
                     
             if target_out:
                 if hasattr(module, "out_proj"):
                     # out_proj is an nn.Linear
                     module.out_proj.weight.requires_grad = False
-                    std_lora = StandardLoRAParametrization(module.out_proj.weight.shape, r=r, alpha=alpha)
+                    std_lora = StandardLoRAParametrization(
+                        module.out_proj.weight.shape, r=r, alpha=alpha
+                    ).to(module.out_proj.weight.device)
                     parametrize.register_parametrization(module.out_proj, "weight", std_lora)
                     
     return model
