@@ -85,7 +85,7 @@ class OpenCLIPLoRAParametrization(nn.Module):
         
     def forward(self, W):
         delta = (self.lora_B @ self.lora_A) * self.scaling
-        return W + (delta * self.mask)
+        return W + (delta * self.mask.to(W.device))
 
 class StandardLoRAParametrization(nn.Module):
     def __init__(self, weight_shape, r=16, alpha=16):
