@@ -1,0 +1,25 @@
+# PyTorch with CUDA 12.1 support (Optimized for NVIDIA H100 Hopper architecture)
+# Driver 535.288.01 fully supports CUDA 12.2, making cu121 the ideal target.
+--extra-index-url https://download.pytorch.org/whl/cu121
+
+torch>=2.2.0
+torchvision>=0.17.0
+torchaudio>=2.2.0
+
+# Model Architecture & Hugging Face
+transformers>=4.38.0
+peft>=0.9.0
+accelerate>=0.28.0
+
+# Vision Encoder
+open_clip_torch>=2.24.0
+timm>=0.9.16
+
+# Logging & Configuration
+wandb>=0.16.4
+pyyaml>=6.0.1
+tqdm>=4.66.2
+
+# Data Processing
+Pillow>=10.2.0
+numpy>=1.26.4

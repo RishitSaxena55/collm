@@ -19,8 +19,8 @@ data:
 
 training:
   stage: 1 # 1 for Pre-training, 2 for Fine-tuning
-  batch_size: 32
-  epochs: 5
+  batch_size: 128
+  epochs: 1
   learning_rate: 0.0001
   eval_every_k_steps: 500
   output_dir: "outputs"
