@@ -22,7 +22,7 @@ class PEFTLoRA(BaseLoRA):
                  lora_alpha: int = 16, 
                  target_modules: list = ["q_proj", "k_proj", "v_proj", "o_proj"], 
                  lora_dropout: float = 0.1,
-                 task_type: str = "CAUSAL_LM"):
+                 task_type: str = "FEATURE_EXTRACTION"):
         """
         Concrete implementation of LoRA using Hugging Face's PEFT library.
         """
