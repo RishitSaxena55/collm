@@ -126,7 +126,9 @@ class SFREmbeddingLLM(BaseLLM):
         attention_mask = tokenized.attention_mask.to(device)
         
         # 3. Get raw token embeddings from the LLM
-        inputs_embeds = self.llm.get_input_embeddings()(input_ids)
+        # We MUST clone() here because we call enable_input_require_grads() on the LLM. 
+        # Otherwise, the in-place visual embedding injection below crashes PyTorch autograd.
+        inputs_embeds = self.llm.get_input_embeddings()(input_ids).clone()
         
         # 4. Inject visual embeddings if they exist in the prompt
         if modality in ["composed", "image_only"] and visual_embeds is not None:
