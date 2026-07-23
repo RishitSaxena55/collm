@@ -17,7 +17,10 @@ class ImageCaptionDataset(Dataset):
         # Load data from file path or use the list directly
         if isinstance(data_list, str):
             with open(data_list, 'r', encoding='utf-8') as f:
-                self.data = [json.loads(line) for line in f]
+                if data_list.endswith('.jsonl'):
+                    self.data = [json.loads(line) for line in f]
+                else:
+                    self.data = json.load(f)
         else:
             self.data = data_list
             
