@@ -1,0 +1,50 @@
+data:
+  dataset_type: "llava" # "llava", "mtcir", or "fiq"
+  
+  # LLaVA Paths (Stage 1)
+  # image_dir: "/workspace/raid/cdsris/nav/data/LLaVA-Pretrain"
+  # train_dataset_file: "/workspace/raid/cdsris/nav/data/LLaVA-Pretrain/blip_laion_cc_sbu_558k_meta.json"
+  
+  # MTCIR Paths (Stage 2)
+  # image_dir: "/workspace/raid/cdsris/nav/data/mt_cir/images"
+  # train_dataset_file: "/workspace/raid/cdsris/nav/data/mt_cir/annotations/train.jsonl"
+  
+  # Active Paths
+  image_dir: "/workspace/raid/cdsris/nav/data/LLaVA-Pretrain"
+  train_dataset_file: "/workspace/raid/cdsris/nav/data/LLaVA-Pretrain/blip_laion_cc_sbu_558k_meta.json"
+  
+  # Evaluation Paths (FashionIQ)
+  eval_dataset_dir: "/workspace/raid/cdsris/nav/data/fiq"
+  eval_split: "val" # "val" or "test"
+
+training:
+  stage: 1 # 1 for Pre-training, 2 for Fine-tuning
+  batch_size: 32
+  epochs: 5
+  learning_rate: 0.0001
+  eval_every_k_steps: 500
+  output_dir: "outputs"
+  resume_from_checkpoint: null
+  mixed_precision: "fp16" # "no", "fp16", or "bf16"
+  gradient_checkpointing: true
+
+wandb:
+  enable: true
+  project: "ret-collm"
+  run_name: "PTbb_clip_large"
+
+model:
+  vision_encoder_name: "openai/clip-vit-large-patch14"
+
+lora:
+  vision:
+    enable: false # Set to true to LoRA-tune the Vision Encoder
+    r: 64
+    alpha: 64
+    dropout: 0.1
+    target_modules: ["q_proj", "k_proj", "v_proj", "out_proj"]
+  llm:
+    r: 16
+    alpha: 16
+    dropout: 0.1
+    target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"]

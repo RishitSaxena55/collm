@@ -47,7 +47,7 @@ class BaseLLM(nn.Module, ABC):
         pass
 
 class SFREmbeddingLLM(BaseLLM):
-    def __init__(self, llm_model_name="Salesforce/SFR-Embedding-2_R", vision_dim=768, freeze_llm=True, lora_adapter=None):
+    def __init__(self, llm_model_name="Salesforce/SFR-Embedding-2_R", vision_dim=768, freeze_llm=True, lora_adapter=None, gradient_checkpointing=False):
         super().__init__(vision_dim=vision_dim, freeze_llm=freeze_llm)
         
         self.llm_model_name = llm_model_name
@@ -67,6 +67,17 @@ class SFREmbeddingLLM(BaseLLM):
         # Load LLM Base Model in bfloat16
         self.llm = AutoModel.from_pretrained(llm_model_name, torch_dtype=torch.bfloat16)
         
+        if gradient_checkpointing:
+            # Disable KV cache (mandatory for checkpointing)
+            self.llm.config.use_cache = False
+            
+            # Force input embeddings to require gradients (prevents LoRA autograd crashes)
+            if hasattr(self.llm, "enable_input_require_grads"):
+                self.llm.enable_input_require_grads()
+                
+            # Enable HF native checkpointing
+            self.llm.gradient_checkpointing_enable()
+            
         # Resize embeddings in case we added new tokens
         if num_added > 0:
             self.llm.resize_token_embeddings(len(self.tokenizer))
