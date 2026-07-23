@@ -16,10 +16,8 @@ class BatchSynthesizer(nn.Module):
         self.alpha = alpha
         self.synthesis_prob = synthesis_prob
         
-        # Ensure vision encoder is frozen and in eval mode
+        # Ensure vision encoder is in eval mode for the synthesizer
         self.vision_encoder.eval()
-        for param in self.vision_encoder.parameters():
-            param.requires_grad = False
             
         # 15 templates from the paper's supplementary material
         self.templates = [
