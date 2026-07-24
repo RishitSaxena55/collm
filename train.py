@@ -250,14 +250,29 @@ def main():
     steps_to_skip = 0
     
     resumed_successfully = False
+    
+    pretrained_ckpt = config['training'].get('pretrained_checkpoint')
+    if pretrained_ckpt and os.path.isfile(pretrained_ckpt):
+        if accelerator.is_main_process:
+            print(f"Loading pretrained weights from: {pretrained_ckpt}")
+        try:
+            checkpoint = torch.load(pretrained_ckpt, map_location=device)
+            accelerator.unwrap_model(vision_encoder).load_state_dict(checkpoint['vision_encoder'], strict=False)
+            accelerator.unwrap_model(llm).load_state_dict(checkpoint['llm'], strict=False)
+            accelerator.unwrap_model(adapter).load_state_dict(checkpoint['adapter'], strict=False)
+            if accelerator.is_main_process:
+                print("Successfully loaded pretrained weights (Optimizer/Step counts reset for new stage).")
+        except Exception as e:
+            if accelerator.is_main_process:
+                print(f"Failed to load pretrained weights: {e}")
     resume_checkpoint = config['training'].get('resume_from_checkpoint')
     if resume_checkpoint and os.path.isfile(resume_checkpoint):
         print(f"Resuming from checkpoint: {resume_checkpoint}")
         try:
             checkpoint = torch.load(resume_checkpoint, map_location=device)
-            vision_encoder.load_state_dict(checkpoint['vision_encoder'], strict=False)
-            llm.load_state_dict(checkpoint['llm'], strict=False)
-            adapter.load_state_dict(checkpoint['adapter'])
+            accelerator.unwrap_model(vision_encoder).load_state_dict(checkpoint['vision_encoder'], strict=False)
+            accelerator.unwrap_model(llm).load_state_dict(checkpoint['llm'], strict=False)
+            accelerator.unwrap_model(adapter).load_state_dict(checkpoint['adapter'])
             
             if 'optimizer' in checkpoint:
                 optimizer.load_state_dict(checkpoint['optimizer'])
