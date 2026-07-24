@@ -77,6 +77,21 @@ def print_training_summary(vision_encoder, llm, adapter, config, dataloader, dat
     print("=== AGGREGATE TOTALS ===")
     print(f"System Total Params:      {sys_tot:,}")
     print(f"System Trainable Params:  {sys_trn:,} ({sys_trn/sys_tot*100:.4f}%)" if sys_tot > 0 else "System Trainable Params:  0")
+    
+    # Update config with computed values so they get logged to WandB
+    config['calculated_info'] = {
+        'global_batch_size': global_batch,
+        'steps_per_epoch': len(dataloader),
+        'vision_total_params': v_tot,
+        'vision_trainable_params': v_trn,
+        'llm_total_params': l_tot,
+        'llm_trainable_params': l_trn,
+        'adapter_total_params': a_tot,
+        'adapter_trainable_params': a_trn,
+        'system_total_params': sys_tot,
+        'system_trainable_params': sys_trn,
+        'system_trainable_percentage': (sys_trn / sys_tot * 100) if sys_tot > 0 else 0
+    }
     print("="*60)
     print()
 
@@ -195,6 +210,22 @@ def main():
         vision_encoder, llm, adapter, optimizer, dataloader, criterion
     )
 
+    # Construct global run name
+    base_name = config.get('wandb', {}).get('run_name', 'PTbb_coca_large')
+    dataset_type_str = config['data'].get('dataset_type', 'llava')
+    global_batch = config['training']['batch_size'] * accelerator.num_processes
+    run_name = f"{base_name}_stage{stage}_{dataset_type_str}_b{global_batch}"
+
+    wandb_enabled = config.get('wandb', {}).get('enable', False)
+    if wandb_enabled and accelerator.is_main_process:
+        import wandb
+        wandb.init(
+            entity="navjak-carnegie-mellon-university",
+            project="ret-collm",
+            name=run_name,
+            config=config
+        )
+
     # Print Summary
     if accelerator.is_main_process:
         # Determine dataset name for logging
@@ -206,12 +237,6 @@ def main():
             dataset_name = "FashionIQ"
             
         print_training_summary(vision_encoder, llm, adapter, config, dataloader, dataset_name, accelerator)
-        
-    # Construct global run name
-    base_name = config.get('wandb', {}).get('run_name', 'PTbb_coca_large')
-    dataset_type_str = config['data'].get('dataset_type', 'llava')
-    global_batch = config['training']['batch_size'] * accelerator.num_processes
-    run_name = f"{base_name}_stage{stage}_{dataset_type_str}_b{global_batch}"
         
     # Set up output directory appended with run name
     output_dir = os.path.join(config['training']['output_dir'], run_name)
@@ -252,17 +277,7 @@ def main():
     if accelerator.is_main_process:
         print("Starting training loop...")
         
-    wandb_enabled = config.get('wandb', {}).get('enable', False)
-    if wandb_enabled and accelerator.is_main_process:
-        import wandb
-        
-        wandb.init(
-            entity="navjak-carnegie-mellon-university",
-            project="ret-collm",
-            name=run_name,
-            config=config
-        )
-        
+
     # Zero-shot evaluation before training
     if not resumed_successfully and global_step == 0:
         accelerator.wait_for_everyone()
