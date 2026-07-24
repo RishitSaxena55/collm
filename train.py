@@ -219,12 +219,19 @@ def main():
     wandb_enabled = config.get('wandb', {}).get('enable', False)
     if wandb_enabled and accelerator.is_main_process:
         import wandb
-        wandb.init(
-            entity="navjak-carnegie-mellon-university",
-            project="ret-collm",
-            name=run_name,
-            config=config
-        )
+        wandb_kwargs = {
+            "entity": "navjak-carnegie-mellon-university",
+            "project": "ret-collm",
+            "name": run_name,
+            "config": config
+        }
+        
+        if "id" in config.get("wandb", {}):
+            wandb_kwargs["id"] = config["wandb"]["id"]
+        if "resume" in config.get("wandb", {}):
+            wandb_kwargs["resume"] = config["wandb"]["resume"]
+            
+        wandb.init(**wandb_kwargs)
 
     # Print Summary
     if accelerator.is_main_process:

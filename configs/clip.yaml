@@ -49,6 +49,8 @@ wandb:
   enable: true
   project: "ret-collm"
   run_name: "PTbb_clip_large"
+  id: null      # Set to the 8-character WandB Run ID to resume
+  resume: null  # Set to "must" to resume a run
 
 model:
   vision_encoder_name: "open_clip:ViT-L-14,openai"
