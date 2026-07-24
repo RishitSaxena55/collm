@@ -206,9 +206,73 @@ def main():
         
     optimizer = torch.optim.AdamW(trainable_params, lr=config['training']['learning_rate'])
     
+    global_step = 0
+    best_recall_10 = 0.0
+    start_epoch = 0
+    steps_to_skip = 0
+    resumed_successfully = False
+    
+    pretrained_ckpt = config['training'].get('pretrained_checkpoint')
+    if pretrained_ckpt and os.path.isfile(pretrained_ckpt):
+        if accelerator.is_main_process:
+            print(f"Loading pretrained weights from: {pretrained_ckpt}")
+        try:
+            checkpoint = torch.load(pretrained_ckpt, map_location=device)
+            vision_encoder.load_state_dict(checkpoint['vision_encoder'], strict=False)
+            llm.load_state_dict(checkpoint['llm'], strict=False)
+            adapter.load_state_dict(checkpoint['adapter'], strict=False)
+            if accelerator.is_main_process:
+                print("Successfully loaded pretrained weights (Optimizer/Step counts reset for new stage).")
+        except Exception as e:
+            if accelerator.is_main_process:
+                print(f"Failed to load pretrained weights: {e}")
+                
+    resume_checkpoint = config['training'].get('resume_from_checkpoint')
+    if resume_checkpoint and os.path.isfile(resume_checkpoint):
+        if accelerator.is_main_process:
+            print(f"Resuming from checkpoint: {resume_checkpoint}")
+        try:
+            checkpoint = torch.load(resume_checkpoint, map_location=device)
+            vision_encoder.load_state_dict(checkpoint['vision_encoder'], strict=False)
+            llm.load_state_dict(checkpoint['llm'], strict=False)
+            adapter.load_state_dict(checkpoint['adapter'], strict=False)
+            
+            if 'optimizer' in checkpoint:
+                try:
+                    optimizer.load_state_dict(checkpoint['optimizer'])
+                except ValueError as ve:
+                    saved_len = len(checkpoint['optimizer']['param_groups'][0]['params'])
+                    current_len = len(optimizer.param_groups[0]['params'])
+                    error_msg = (
+                        f"\n======================================================\n"
+                        f"OPTIMIZER MISMATCH ERROR!\n"
+                        f"The checkpoint was saved with {saved_len} trainable tensors.\n"
+                        f"But your current YAML config creates {current_len} trainable tensors.\n"
+                        f"This means you changed a setting in your YAML (like lora.vision.enable, or target_modules) "
+                        f"between the time the run crashed and now. You MUST restore the exact same YAML settings to resume!\n"
+                        f"======================================================\n"
+                    )
+                    if accelerator.is_main_process:
+                        print(error_msg)
+                    raise RuntimeError("Optimizer parameter mismatch. See above.")
+            
+            global_step = checkpoint.get('global_step', 0)
+            best_recall_10 = checkpoint.get('best_recall_10', 0.0)
+            resumed_successfully = True
+        except Exception as e:
+            if accelerator.is_main_process:
+                print(f"Failed to resume from checkpoint: {e}")
+            raise RuntimeError(f"CRITICAL: Failed to resume from checkpoint {resume_checkpoint}. See error above.") from e
+            
     vision_encoder, llm, adapter, optimizer, dataloader, criterion = accelerator.prepare(
         vision_encoder, llm, adapter, optimizer, dataloader, criterion
     )
+    
+    if resumed_successfully:
+        start_epoch = global_step // len(dataloader)
+        steps_to_skip = global_step % len(dataloader)
+        if accelerator.is_main_process:
+            print(f"Resumed successfully. Fast-forwarding to Epoch {start_epoch+1}, Step {steps_to_skip}")
 
     # Construct global run name
     base_name = config.get('wandb', {}).get('run_name', 'PTbb_coca_large')
@@ -251,49 +315,7 @@ def main():
         os.makedirs(output_dir, exist_ok=True)
     eval_k = config['training']['eval_every_k_steps']
     
-    global_step = 0
-    best_recall_10 = 0.0
-    start_epoch = 0
-    steps_to_skip = 0
-    
-    resumed_successfully = False
-    
-    pretrained_ckpt = config['training'].get('pretrained_checkpoint')
-    if pretrained_ckpt and os.path.isfile(pretrained_ckpt):
-        if accelerator.is_main_process:
-            print(f"Loading pretrained weights from: {pretrained_ckpt}")
-        try:
-            checkpoint = torch.load(pretrained_ckpt, map_location=device)
-            accelerator.unwrap_model(vision_encoder).load_state_dict(checkpoint['vision_encoder'], strict=False)
-            accelerator.unwrap_model(llm).load_state_dict(checkpoint['llm'], strict=False)
-            accelerator.unwrap_model(adapter).load_state_dict(checkpoint['adapter'], strict=False)
-            if accelerator.is_main_process:
-                print("Successfully loaded pretrained weights (Optimizer/Step counts reset for new stage).")
-        except Exception as e:
-            if accelerator.is_main_process:
-                print(f"Failed to load pretrained weights: {e}")
-    resume_checkpoint = config['training'].get('resume_from_checkpoint')
-    if resume_checkpoint and os.path.isfile(resume_checkpoint):
-        print(f"Resuming from checkpoint: {resume_checkpoint}")
-        try:
-            checkpoint = torch.load(resume_checkpoint, map_location=device)
-            accelerator.unwrap_model(vision_encoder).load_state_dict(checkpoint['vision_encoder'], strict=False)
-            accelerator.unwrap_model(llm).load_state_dict(checkpoint['llm'], strict=False)
-            accelerator.unwrap_model(adapter).load_state_dict(checkpoint['adapter'])
-            
-            if 'optimizer' in checkpoint:
-                optimizer.load_state_dict(checkpoint['optimizer'])
-            
-            global_step = checkpoint.get('global_step', 0)
-            best_recall_10 = checkpoint.get('best_recall_10', 0.0)
-            
-            start_epoch = global_step // len(dataloader)
-            steps_to_skip = global_step % len(dataloader)
-            
-            print(f"Resumed successfully. Fast-forwarding to Epoch {start_epoch+1}, Step {steps_to_skip}")
-            resumed_successfully = True
-        except Exception as e:
-            print(f"Failed to resume from checkpoint: {e}")
+    pass # Checkpoint loading logic was moved above accelerator.prepare
 
     # 3. Training Loop
     if accelerator.is_main_process:
