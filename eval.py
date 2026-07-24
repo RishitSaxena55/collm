@@ -15,9 +15,15 @@ from models.adapter import ImageAdapter
 from models.lora import PEFTLoRA
 
 # --- Datasets ---
+def get_image_path(image_dir, img_id):
+    path_png = os.path.join(image_dir, f"{img_id}.png")
+    if os.path.exists(path_png):
+        return path_png
+    return os.path.join(image_dir, f"{img_id}.jpg")
+
 class TargetDataset(Dataset):
     def __init__(self, target_ids, image_dir, transform):
-        self.target_paths = [os.path.join(image_dir, f"{tid}.jpg") for tid in target_ids]
+        self.target_paths = [get_image_path(image_dir, tid) for tid in target_ids]
         self.transform = transform
         
     def __len__(self):
@@ -46,8 +52,8 @@ class FIQQueryDataset(Dataset):
         ref_id = item.get("candidate")
         target_id = item.get("target")
         
-        ref_path = os.path.join(self.image_dir, f"{ref_id}.jpg")
-        target_path = os.path.join(self.image_dir, f"{target_id}.jpg")
+        ref_path = get_image_path(self.image_dir, ref_id)
+        target_path = get_image_path(self.image_dir, target_id)
         
         texts = item.get("captions", [])
         mod_text = " and ".join(texts) if isinstance(texts, list) else ""

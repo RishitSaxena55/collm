@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from abc import ABC, abstractmethod
-from transformers import CLIPVisionModel, BlipVisionModel
+from transformers import CLIPVisionModel, BlipForConditionalGeneration
 
 
 class BaseVisionEncoder(nn.Module, ABC):
@@ -33,7 +33,12 @@ class BaseVisionEncoder(nn.Module, ABC):
 class BLIPVisionEncoder(BaseVisionEncoder):
     def __init__(self, model_name="Salesforce/blip-image-captioning-large", freeze=True, lora_adapter=None):
         super().__init__(freeze)
-        self.model = BlipVisionModel.from_pretrained(model_name)
+        
+        # Bug Fix: Salesforce/blip-image-captioning-large is a full multimodal model.
+        # If we load it directly via BlipVisionModel, HF fails to map the vision_model.* keys
+        # and randomly initializes the vision encoder. We must load the full model and extract it.
+        full_model = BlipForConditionalGeneration.from_pretrained(model_name)
+        self.model = full_model.vision_model
         
         if lora_adapter is not None:
             self.model = lora_adapter.apply(self.model)
