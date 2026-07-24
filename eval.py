@@ -164,8 +164,8 @@ def run_evaluation(config, vision_encoder, llm, adapter, device, transform):
     print("      FIQ AVERAGED EVALUATION RESULTS")
     print("="*30)
     for k in aggregated_metrics.keys():
-        aggregated_metrics[k] /= len(classes)
-        print(f"{k:>10}: {aggregated_metrics[k] * 100:.2f}%")
+        aggregated_metrics[k] = (aggregated_metrics[k] / len(classes)) * 100
+        print(f"{k:>10}: {aggregated_metrics[k]:.2f}%")
     print("="*30 + "\n")
     
     return aggregated_metrics

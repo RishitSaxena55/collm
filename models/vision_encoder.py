@@ -3,19 +3,6 @@ import torch.nn as nn
 from abc import ABC, abstractmethod
 from transformers import CLIPVisionModel, BlipVisionModel
 
-class BLIPVisionEncoder(BaseVisionEncoder):
-    def __init__(self, model_name="Salesforce/blip-image-captioning-large", freeze=True, lora_adapter=None):
-        super().__init__(freeze)
-        self.model = BlipVisionModel.from_pretrained(model_name)
-        
-        if lora_adapter is not None:
-            self.model = lora_adapter.apply(self.model)
-        else:
-            self._apply_freezing()
-            
-    def forward(self, pixel_values):
-        outputs = self.model(pixel_values=pixel_values, return_dict=True)
-        return outputs.pooler_output
 
 class BaseVisionEncoder(nn.Module, ABC):
     def __init__(self, freeze=True):
@@ -42,6 +29,20 @@ class BaseVisionEncoder(nn.Module, ABC):
             Tensor of shape (B, Hidden_Dim) representing the pooled 1D visual token.
         """
         pass
+
+class BLIPVisionEncoder(BaseVisionEncoder):
+    def __init__(self, model_name="Salesforce/blip-image-captioning-large", freeze=True, lora_adapter=None):
+        super().__init__(freeze)
+        self.model = BlipVisionModel.from_pretrained(model_name)
+        
+        if lora_adapter is not None:
+            self.model = lora_adapter.apply(self.model)
+        else:
+            self._apply_freezing()
+            
+    def forward(self, pixel_values):
+        outputs = self.model(pixel_values=pixel_values, return_dict=True)
+        return outputs.pooler_output
 
 class CLIPVisionEncoder(BaseVisionEncoder):
     def __init__(self, model_name="openai/clip-vit-large-patch14", freeze=True, lora_adapter=None):

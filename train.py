@@ -368,7 +368,7 @@ def main():
                         best_recall_10 = r10
                         best_path = os.path.join(output_dir, "best_checkpoint.pt")
                         torch.save(checkpoint, best_path)
-                        print(f"*** New Best Recall@10 ({r10 * 100:.2f}%)! Saved {best_path} ***")
+                        print(f"*** New Best Recall@10 ({r10:.2f}%)! Saved {best_path} ***")
                         
                     if wandb_enabled and metrics:
                         wandb.log({f"eval/{k}": v for k, v in metrics.items()}, step=global_step)
