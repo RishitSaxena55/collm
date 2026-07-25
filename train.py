@@ -221,6 +221,8 @@ def main():
             vision_encoder.load_state_dict(checkpoint['vision_encoder'], strict=False)
             llm.load_state_dict(checkpoint['llm'], strict=False)
             adapter.load_state_dict(checkpoint['adapter'], strict=False)
+            if 'criterion' in checkpoint:
+                criterion.load_state_dict(checkpoint['criterion'], strict=False)
             if accelerator.is_main_process:
                 print("Successfully loaded pretrained weights (Optimizer/Step counts reset for new stage).")
         except Exception as e:
@@ -236,6 +238,8 @@ def main():
             vision_encoder.load_state_dict(checkpoint['vision_encoder'], strict=False)
             llm.load_state_dict(checkpoint['llm'], strict=False)
             adapter.load_state_dict(checkpoint['adapter'], strict=False)
+            if 'criterion' in checkpoint:
+                criterion.load_state_dict(checkpoint['criterion'], strict=False)
             
             if 'optimizer' in checkpoint:
                 try:
@@ -335,12 +339,15 @@ def main():
             print("---------------------------------------------------\n")
         
     for epoch in range(start_epoch, config['training']['epochs']):
-        for step, batch in enumerate(dataloader):
-            if epoch == start_epoch and step < steps_to_skip:
-                if step % 500 == 0 and accelerator.is_main_process:
-                    print(f"Fast-forwarding dataloader: skipped {step}/{steps_to_skip} batches...")
-                continue
+        active_dataloader = dataloader
+        if epoch == start_epoch and steps_to_skip > 0:
+            active_dataloader = accelerator.skip_first_batches(dataloader, num_batches=steps_to_skip)
+            if accelerator.is_main_process:
+                print(f"Instantly fast-forwarded {steps_to_skip} batches using accelerate!")
                 
+        for step, batch in enumerate(active_dataloader):
+            true_step = step + steps_to_skip if epoch == start_epoch else step
+            
             # Ensure models are in train mode
             vision_encoder.train()
             llm.train()
@@ -392,7 +399,7 @@ def main():
             global_step += 1
             
             if accelerator.is_main_process:
-                print(f"Epoch [{epoch+1}/{config['training']['epochs']}] Step [{step+1}/{len(dataloader)}] (Global {global_step}) Loss: {loss.item():.4f}")
+                print(f"Epoch [{epoch+1}/{config['training']['epochs']}] Step [{true_step+1}/{len(dataloader)}] (Global {global_step}) Loss: {loss.item():.4f}")
                 if wandb_enabled:
                     wandb.log({
                         "train/loss_total": loss.item(),
@@ -413,6 +420,7 @@ def main():
                         'vision_encoder': accelerator.unwrap_model(vision_encoder).state_dict(),
                         'llm': accelerator.unwrap_model(llm).state_dict(),
                         'adapter': accelerator.unwrap_model(adapter).state_dict(),
+                        'criterion': accelerator.unwrap_model(criterion).state_dict(),
                         'optimizer': optimizer.state_dict(),
                         'global_step': global_step,
                         'best_recall_10': best_recall_10
