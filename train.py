@@ -337,6 +337,8 @@ def main():
     for epoch in range(start_epoch, config['training']['epochs']):
         for step, batch in enumerate(dataloader):
             if epoch == start_epoch and step < steps_to_skip:
+                if step % 500 == 0 and accelerator.is_main_process:
+                    print(f"Fast-forwarding dataloader: skipped {step}/{steps_to_skip} batches...")
                 continue
                 
             # Ensure models are in train mode
