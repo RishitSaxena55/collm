@@ -32,6 +32,11 @@ def print_training_summary(vision_encoder, llm, adapter, config, dataloader, dat
     stage = config['training']['stage']
     print(f"Stage:                {stage} ({'Pre-training' if stage == 1 else 'Fine-tuning'})")
     print(f"Dataset:              {dataset_name}")
+    
+    if dataset_name == "mtcir":
+        use_space_join = config['data'].get('use_space_join', False)
+        print(f"MTCIR Text Mode:      {'Space Joined (\\" \\".join)' if use_space_join else 'Random Sample (choice)'}")
+        
     print(f"Epochs:               {config['training']['epochs']}")
     per_device_batch = config['training']['batch_size']
     global_batch = per_device_batch * accelerator.num_processes
@@ -125,7 +130,8 @@ def main():
         dataset = LLaVADataset(config['data']['train_dataset_file'], image_dir=config['data']['image_dir'], target_transform=transform, aug_transform=transform)
     else:
         if dataset_type == "mtcir":
-            dataset = MTCIRDataset(config['data']['train_dataset_file'], image_dir=config['data']['image_dir'], transform=transform)
+            use_space_join = config['data'].get('use_space_join', False)
+            dataset = MTCIRDataset(config['data']['train_dataset_file'], image_dir=config['data']['image_dir'], transform=transform, use_space_join=use_space_join)
         elif dataset_type == "fiq":
             dataset = FIQDataset(config['data']['train_dataset_file'], image_dir=config['data']['image_dir'], transform=transform)
         else:

@@ -31,8 +31,8 @@ All configuration files share an optimized baseline setting across training stag
   - **LLM Adapter:** Rank $r=16, \alpha=16$, targeting `["q_proj", "k_proj", "v_proj", "o_proj"]` (Trainable across all runs).
   - **Vision Adapter:** Rank $r=64, \alpha=64$, targeting attention/projection layers (Toggled depending on experiment).
 - **Loss Function:** Compositional InfoNCE loss with trainable temperature (initialized at $\tau=0.07$).
+- **MTCIR Text Processing (`use_space_join`):** Defaults to `false` (randomly samples one modification text per step). Toggle to `true` in `configs/` to join all modification descriptions into a single dense sentence per transition.
 - **Evaluation:** Automated zero-shot validation on FashionIQ (`val` split) every 500 steps.
-
 ---
 
 ## 3. Experiment Matrix Overview

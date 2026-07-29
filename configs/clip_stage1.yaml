@@ -1,5 +1,6 @@
 data:
   dataset_type: "llava" # "llava", "mtcir", or "fiq"
+  use_space_join: false
   
   # LLaVA Paths (Stage 1)
   # image_dir: "/workspace/raid/cdsris/nav/data/LLaVA-Pretrain"

@@ -10,12 +10,13 @@ class TripletDataset(Dataset):
     Dataset for supervised Composed Image Retrieval (CIR) fine-tuning.
     Loads explicit triplets: Reference Image, Target Image, and Modification Text.
     """
-    def __init__(self, jsonl_path, transform=None, image_dir=""):
+    def __init__(self, jsonl_path, transform=None, image_dir="", use_space_join=False):
         """
         Args:
             jsonl_path (str): Path to the JSONL dataset file.
             transform (callable, optional): Transform to be applied on the PIL images.
             image_dir (str): Base directory for relative image paths.
+            use_space_join (bool): If True, concatenates multiple mod texts with spaces instead of sampling.
         """
         self.data = []
         with open(jsonl_path, 'r') as f:
@@ -27,6 +28,7 @@ class TripletDataset(Dataset):
                 
         self.transform = transform
         self.image_dir = image_dir
+        self.use_space_join = use_space_join
 
     def __len__(self):
         return len(self.data)
@@ -79,6 +81,8 @@ class MTCIRDataset(TripletDataset):
     def _process_text(self, item):
         texts = item.get("texts", [])
         if isinstance(texts, list) and len(texts) > 0:
+            if self.use_space_join:
+                return " ".join([str(t).strip() for t in texts if t])
             return random.choice(texts)
         elif isinstance(texts, str):
             return texts
