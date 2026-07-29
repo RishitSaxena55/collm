@@ -33,7 +33,7 @@ def print_training_summary(vision_encoder, llm, adapter, config, dataloader, dat
     print(f"Stage:                {stage} ({'Pre-training' if stage == 1 else 'Fine-tuning'})")
     print(f"Dataset:              {dataset_name}")
     
-    if dataset_name == "mtcir":
+    if dataset_name.lower() == "mtcir":
         use_space_join = config['data'].get('use_space_join', False)
         mode_str = 'Space Joined (" ".join)' if use_space_join else 'Random Sample (choice)'
         print(f"MTCIR Text Mode:      {mode_str}")
