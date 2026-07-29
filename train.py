@@ -35,7 +35,8 @@ def print_training_summary(vision_encoder, llm, adapter, config, dataloader, dat
     
     if dataset_name == "mtcir":
         use_space_join = config['data'].get('use_space_join', False)
-        print(f"MTCIR Text Mode:      {'Space Joined (\\" \\".join)' if use_space_join else 'Random Sample (choice)'}")
+        mode_str = 'Space Joined (" ".join)' if use_space_join else 'Random Sample (choice)'
+        print(f"MTCIR Text Mode:      {mode_str}")
         
     print(f"Epochs:               {config['training']['epochs']}")
     per_device_batch = config['training']['batch_size']
