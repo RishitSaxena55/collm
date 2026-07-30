@@ -92,3 +92,36 @@ accelerate launch train.py --config configs/blip_stage2_only_frozen.yaml
 # Stage 2 (Direct / Tuned): Direct training on MTCIR with active Vision LoRA (qkv/projection targets)
 accelerate launch train.py --config configs/blip_stage2_only_unfrozen.yaml
 ```
+
+---
+
+## 5. Evaluation & Inference
+
+You can run zero-shot or fine-tuned evaluation on either **FashionIQ (FIQ)** or **CIRCO** datasets using `eval.py`. The evaluation dataset and path are configured directly inside your YAML configuration files.
+
+### Standard Checkpoint Evaluation
+By default, the script evaluates the `last_checkpoint.pt` located in the config's output directory.
+```bash
+# Evaluates whatever dataset (fiq/circo) is defined in the config
+python eval.py --config configs/clip_stage2_after_stage1.yaml
+```
+
+### Specific Checkpoint Evaluation (Pretrained or Custom)
+If you want to evaluate the full model initialized with a **specific checkpoint** (e.g., evaluating a Stage 1 pretrained checkpoint, or an older epoch), pass the `--checkpoint` argument. This bypasses the default save directory and loads the model exactly as defined by the config + your passed weights.
+```bash
+python eval.py \
+    --config configs/clip_stage1.yaml \
+    --checkpoint /path/to/specific/checkpoint.pt
+```
+
+### Switching Datasets
+To switch the evaluation target between FIQ and CIRCO, simply edit the `data:` block of your target config file:
+```yaml
+data:
+  # To evaluate FashionIQ
+  eval_dataset: fiq
+  
+  # To evaluate CIRCO (computes mAP@K and Semantic mAP@10 directly in the terminal)
+  # eval_dataset: circo
+  circo_dataset_dir: /home/anirban/yashwanthm/CIRCO
+```

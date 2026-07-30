@@ -13,6 +13,7 @@ from models.vision_encoder import CLIPVisionEncoder
 from models.llm import SFREmbeddingLLM
 from models.adapter import ImageAdapter
 from models.lora import PEFTLoRA
+from circo_utils import CIRCODataset, compute_metrics
 
 # --- Datasets ---
 def get_image_path(image_dir, img_id):
@@ -176,10 +177,87 @@ def run_evaluation(config, vision_encoder, llm, adapter, device, transform):
     
     return aggregated_metrics
 
+def run_circo_evaluation(config, vision_encoder, llm, adapter, device, transform):
+    vision_encoder.eval()
+    llm.eval()
+    adapter.eval()
+    
+    data_path = config['data']['circo_dataset_dir']
+    batch_size = config['training']['batch_size']
+    
+    print("\nInitializing CIRCO Datasets...")
+    dataset_classic = CIRCODataset(data_path, split='val', mode='classic', preprocess=transform)
+    dataset_relative = CIRCODataset(data_path, split='val', mode='relative', preprocess=transform)
+    
+    target_loader = DataLoader(dataset_classic, batch_size=batch_size, shuffle=False)
+    query_loader = DataLoader(dataset_relative, batch_size=batch_size, shuffle=False)
+    
+    # 1. Target Embeddings
+    print("Extracting Target Corpus Embeddings...")
+    target_features = []
+    target_ids = []
+    
+    with torch.no_grad():
+        for batch in tqdm(target_loader):
+            imgs = batch['img'].to(device)
+            ids = batch['img_id'] # these are strings
+            feats = vision_encoder(imgs)
+            feats = F.normalize(feats, dim=-1)
+            target_features.append(feats)
+            target_ids.extend(ids)
+            
+    target_features = torch.cat(target_features, dim=0) # [N, dim]
+    
+    # 2. Query Embeddings
+    print("Extracting Query Embeddings...")
+    predictions_dict = {}
+    
+    with torch.no_grad():
+        for batch in tqdm(query_loader):
+            ref_imgs = batch['reference_img'].to(device)
+            caps = batch['relative_caption']
+            q_ids = batch['query_id'] # list of str
+            
+            ref_feats = vision_encoder(ref_imgs)
+            adapted_feats = adapter(ref_feats)
+            
+            query_feats = llm(adapted_feats, caps)
+            query_feats = F.normalize(query_feats, dim=-1)
+            
+            # 3. Similarity and Ranking for this batch
+            sims = query_feats @ target_features.T # [batch_size, N]
+            topk_vals, topk_indices = sims.topk(50, dim=-1)
+            
+            for i, q_id in enumerate(q_ids):
+                top_targets = [int(target_ids[idx]) for idx in topk_indices[i].cpu().tolist()]
+                predictions_dict[int(q_id)] = top_targets
+                
+    # 4. Save and Compute Metrics
+    import json
+    from pathlib import Path
+    with open("circo_val_predictions.json", "w") as f:
+        json.dump(predictions_dict, f, indent=4)
+        
+    print("\nPredictions saved to circo_val_predictions.json. Computing official CIRCO metrics...")
+    map_atk, recall_atk, semantic_map_at10 = compute_metrics(Path(data_path), predictions_dict, ranks=[5, 10, 25, 50])
+    
+    print("\nmAP@k metrics")
+    for rank in [5, 10, 25, 50]:
+        print(f"mAP@{rank}: {map_atk[rank] * 100:.2f}")
+
+    print("\nRecall@k metrics")
+    for rank in [5, 10, 25, 50]:
+        print(f"Recall@{rank}: {recall_atk[rank] * 100:.2f}")
+
+    print("\nSemantic mAP@10 metrics")
+    for aspect, map_at10 in semantic_map_at10.items():
+        print(f"Semantic mAP@10 for aspect '{aspect}': {map_at10 * 100:.2f}")
+
 # --- Standalone Evaluation Loop ---
 def evaluate():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, default="configs/default.yaml", help="Path to YAML config file")
+    parser.add_argument("--checkpoint", type=str, default=None, help="Optional: Path to specific checkpoint.pt file to load (overrides default)")
     args = parser.parse_args()
     
     with open(args.config, 'r') as f:
@@ -202,8 +280,12 @@ def evaluate():
     
     adapter = ImageAdapter(vision_dim=vision_dim, llm_dim=llm_dim).to(device)
     
-    # Standalone eval attempts to load last_checkpoint.pt from output directory
-    ckpt_path = os.path.join(config['training']['output_dir'], "last_checkpoint.pt")
+    if args.checkpoint:
+        ckpt_path = args.checkpoint
+    else:
+        # Standalone eval attempts to load last_checkpoint.pt from output directory
+        ckpt_path = os.path.join(config['training']['output_dir'], "last_checkpoint.pt")
+        
     print(f"Loading checkpoint from {ckpt_path}...")
     try:
         checkpoint = torch.load(ckpt_path, map_location=device)
@@ -221,7 +303,11 @@ def evaluate():
                     std=[0.26862954, 0.26130258, 0.27577711])
     ])
     
-    run_evaluation(config, vision_encoder, llm, adapter, device, transform)
+    eval_dataset = config['data'].get('eval_dataset', 'fiq')
+    if eval_dataset == 'circo':
+        run_circo_evaluation(config, vision_encoder, llm, adapter, device, transform)
+    else:
+        run_evaluation(config, vision_encoder, llm, adapter, device, transform)
 
 if __name__ == "__main__":
     evaluate()

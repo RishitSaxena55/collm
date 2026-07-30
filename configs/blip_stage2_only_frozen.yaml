@@ -1,5 +1,7 @@
 data:
   dataset_type: "mtcir" # "llava", "mtcir", or "fiq"
+  circo_dataset_dir: /home/anirban/yashwanthm/CIRCO
+  eval_dataset: fiq
   use_space_join: false
   
   # LLaVA Paths (Stage 1)
