@@ -12,7 +12,7 @@ from tqdm import tqdm
 from models.vision_encoder import CLIPVisionEncoder
 from models.llm import SFREmbeddingLLM
 from models.adapter import ImageAdapter
-from models.lora import PEFTLoRA
+from models.lora import PEFTLoRA, apply_openclip_lora
 from circo_utils import CIRCODataset, compute_metrics
 
 # --- Datasets ---
@@ -270,7 +270,7 @@ def evaluate():
     vision_model_name = config['model']['vision_encoder_name']
     
     if vision_model_name.startswith("coca"):
-        from models.vision_encoder import CoCaVisionEncoder, apply_openclip_lora
+        from models.vision_encoder import CoCaVisionEncoder
         vision_encoder = CoCaVisionEncoder(freeze=True).to(device)
         vision_dim = 768 # CoCa ViT-L-14 outputs 768
         if v_lora_cfg.get('enable', False):
@@ -281,7 +281,7 @@ def evaluate():
                 target_modules=v_lora_cfg['target_modules']
             ).to(device)
     elif vision_model_name.startswith("open_clip:"):
-        from models.vision_encoder import OpenCLIPVisionEncoder, apply_openclip_lora
+        from models.vision_encoder import OpenCLIPVisionEncoder
         model_name, pretrained = vision_model_name.replace("open_clip:", "").split(",")
         vision_encoder = OpenCLIPVisionEncoder(model_name=model_name, pretrained=pretrained, freeze=True).to(device)
         vision_dim = vision_encoder.model.ln_pre.weight.shape[0] if hasattr(vision_encoder.model, "ln_pre") else 768
