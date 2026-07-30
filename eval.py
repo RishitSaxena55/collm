@@ -266,11 +266,48 @@ def evaluate():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     # Load Models
-    v_lora = config['lora']['vision']
-    vision_lora = PEFTLoRA(r=v_lora['r'], lora_alpha=v_lora['alpha'], target_modules=v_lora['target_modules'], lora_dropout=v_lora['dropout'])
-    vision_encoder = CLIPVisionEncoder(model_name=config['model']['vision_encoder_name'], freeze=True, lora_adapter=vision_lora).to(device)
+    v_lora_cfg = config['lora']['vision']
+    vision_model_name = config['model']['vision_encoder_name']
     
-    vision_dim = vision_encoder.model.config.hidden_size
+    if vision_model_name.startswith("coca"):
+        from models.vision_encoder import CoCaVisionEncoder, apply_openclip_lora
+        vision_encoder = CoCaVisionEncoder(freeze=True).to(device)
+        vision_dim = 768 # CoCa ViT-L-14 outputs 768
+        if v_lora_cfg.get('enable', False):
+            vision_encoder = apply_openclip_lora(
+                vision_encoder, 
+                r=v_lora_cfg['r'], 
+                alpha=v_lora_cfg['alpha'], 
+                target_modules=v_lora_cfg['target_modules']
+            ).to(device)
+    elif vision_model_name.startswith("open_clip:"):
+        from models.vision_encoder import OpenCLIPVisionEncoder, apply_openclip_lora
+        model_name, pretrained = vision_model_name.replace("open_clip:", "").split(",")
+        vision_encoder = OpenCLIPVisionEncoder(model_name=model_name, pretrained=pretrained, freeze=True).to(device)
+        vision_dim = vision_encoder.model.ln_pre.weight.shape[0] if hasattr(vision_encoder.model, "ln_pre") else 768
+        if v_lora_cfg.get('enable', False):
+            vision_encoder = apply_openclip_lora(
+                vision_encoder, 
+                r=v_lora_cfg['r'], 
+                alpha=v_lora_cfg['alpha'], 
+                target_modules=v_lora_cfg['target_modules']
+            ).to(device)
+    elif vision_model_name.startswith("blip:"):
+        from models.vision_encoder import BLIPVisionEncoder
+        model_name = vision_model_name.replace("blip:", "")
+        if v_lora_cfg.get('enable', False):
+            vision_lora = PEFTLoRA(r=v_lora_cfg['r'], lora_alpha=v_lora_cfg['alpha'], target_modules=v_lora_cfg['target_modules'], lora_dropout=v_lora_cfg['dropout'])
+        else:
+            vision_lora = None
+        vision_encoder = BLIPVisionEncoder(model_name=model_name, freeze=True, lora_adapter=vision_lora).to(device)
+        vision_dim = vision_encoder.model.config.hidden_size
+    else:
+        if v_lora_cfg.get('enable', False):
+            vision_lora = PEFTLoRA(r=v_lora_cfg['r'], lora_alpha=v_lora_cfg['alpha'], target_modules=v_lora_cfg['target_modules'], lora_dropout=v_lora_cfg['dropout'])
+        else:
+            vision_lora = None
+        vision_encoder = CLIPVisionEncoder(model_name=vision_model_name, freeze=True, lora_adapter=vision_lora).to(device)
+        vision_dim = vision_encoder.model.config.hidden_size
     
     l_lora = config['lora']['llm']
     lora = PEFTLoRA(r=l_lora['r'], lora_alpha=l_lora['alpha'], target_modules=l_lora['target_modules'], lora_dropout=l_lora['dropout'])
