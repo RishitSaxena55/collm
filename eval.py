@@ -359,7 +359,7 @@ def evaluate():
             
     if config.get("wandb", {}).get("enable", False):
         import wandb
-        run_name = config["wandb"].get("name", "collm-eval") + "_eval"
+        run_name = config["wandb"].get("name", "collm-eval") + f"_eval_{eval_dataset}"
         wandb_kwargs = {
             "project": config["wandb"].get("project", "collm"),
             "name": run_name,
