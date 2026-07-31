@@ -253,6 +253,8 @@ def run_circo_evaluation(config, vision_encoder, llm, adapter, device, transform
     for aspect, map_at10 in semantic_map_at10.items():
         print(f"Semantic mAP@10 for aspect '{aspect}': {map_at10 * 100:.2f}")
 
+    return map_atk, recall_atk, semantic_map_at10
+
 # --- Standalone Evaluation Loop ---
 def evaluate():
     parser = argparse.ArgumentParser()
@@ -341,10 +343,32 @@ def evaluate():
     ])
     
     eval_dataset = config['data'].get('eval_dataset', 'fiq')
+    metrics_to_log = {}
+    
     if eval_dataset == 'circo':
-        run_circo_evaluation(config, vision_encoder, llm, adapter, device, transform)
+        map_atk, recall_atk, semantic_map_at10 = run_circo_evaluation(config, vision_encoder, llm, adapter, device, transform)
+        for rank in [5, 10, 25, 50]:
+            metrics_to_log[f"circo_val/mAP@{rank}"] = map_atk[rank] * 100
+            metrics_to_log[f"circo_val/Recall@{rank}"] = recall_atk[rank] * 100
+        for aspect, map_at10 in semantic_map_at10.items():
+            metrics_to_log[f"circo_val/Semantic_mAP@10_{aspect}"] = map_at10 * 100
     else:
-        run_evaluation(config, vision_encoder, llm, adapter, device, transform)
+        aggregated_metrics = run_evaluation(config, vision_encoder, llm, adapter, device, transform)
+        for k, v in aggregated_metrics.items():
+            metrics_to_log[f"fiq_val/{k}"] = v
+            
+    if config.get("wandb", {}).get("enable", False):
+        import wandb
+        run_name = config["wandb"].get("name", "collm-eval") + "_eval"
+        wandb_kwargs = {
+            "project": config["wandb"].get("project", "collm"),
+            "name": run_name,
+            "config": config
+        }
+        wandb.init(**wandb_kwargs)
+        wandb.log(metrics_to_log)
+        wandb.finish()
+        print(f"Successfully logged evaluation metrics to WandB run: {run_name}")
 
 if __name__ == "__main__":
     evaluate()
