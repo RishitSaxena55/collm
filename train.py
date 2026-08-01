@@ -367,8 +367,10 @@ def main():
                 v_i = v_i.to(device)
                 v_prime_i = v_prime_i.to(device)
                 
-                with torch.no_grad():
+                vision_grad_enabled = any(p.requires_grad for p in vision_encoder.parameters())
+                with torch.set_grad_enabled(vision_grad_enabled):
                     z_i = vision_encoder(v_i)
+                with torch.no_grad():
                     h_star_i, w_star_i = synthesizer(v_prime_i, captions)
                     
                 visual_embeds = adapter(h_star_i)
@@ -387,7 +389,8 @@ def main():
                 v_ref = v_ref.to(device)
                 v_target = v_target.to(device)
                 
-                with torch.no_grad():
+                vision_grad_enabled = any(p.requires_grad for p in vision_encoder.parameters())
+                with torch.set_grad_enabled(vision_grad_enabled):
                     z_i = vision_encoder(v_target)
                     h_i = vision_encoder(v_ref)
                 
