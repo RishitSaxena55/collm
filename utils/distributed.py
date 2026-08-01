@@ -24,9 +24,12 @@ class GatherLayer(torch.autograd.Function):
         if not dist.is_available() or not dist.is_initialized():
             return grads[0]
             
+        # We must all_reduce the gradients to accumulate the cross-GPU negative signals!
+        stacked_grads = torch.stack(grads)
+        dist.all_reduce(stacked_grads, op=dist.ReduceOp.SUM)
+        
         grad_out = torch.zeros_like(input)
-        # Select the gradient slice corresponding to this rank
-        grad_out[:] = grads[dist.get_rank()]
+        grad_out[:] = stacked_grads[dist.get_rank()]
         return grad_out
 
 def gather_embeddings(z):

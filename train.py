@@ -344,6 +344,7 @@ def main():
             if wandb_enabled and metrics:
                 wandb.log({f"eval/{k}": v for k, v in metrics.items()}, step=global_step)
             print("---------------------------------------------------\n")
+        accelerator.wait_for_everyone() # Synchronize all GPUs after evaluation finishes
         
     for epoch in range(start_epoch, config['training']['epochs']):
         active_dataloader = dataloader
@@ -453,7 +454,8 @@ def main():
                         wandb.log({f"eval/{k}": v for k, v in metrics.items()}, step=global_step)
                         
                     print("---------------------------------------------------\n")
-
+                
+                accelerator.wait_for_everyone() # Synchronize all GPUs after evaluation finishes
     if accelerator.is_main_process:
         print("Training loop complete!")
 
