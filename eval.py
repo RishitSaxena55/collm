@@ -359,7 +359,16 @@ def evaluate():
             
     if config.get("wandb", {}).get("enable", False):
         import wandb
-        run_name = config["wandb"].get("name", "collm-eval") + f"_eval_{eval_dataset}"
+        
+        # Construct dynamic base name to match train.py logic
+        base_name = config.get('wandb', {}).get('name', 'collm-eval')
+        stage = config.get('training', {}).get('stage', 1)
+        dataset_type_str = config.get('data', {}).get('dataset_type', 'llava')
+        batch_size = config.get('training', {}).get('batch_size', 128)
+        
+        dynamic_base_name = f"{base_name}_stage{stage}_{dataset_type_str}_b{batch_size}"
+        run_name = f"{dynamic_base_name}_eval_{eval_dataset}"
+        
         wandb_kwargs = {
             "project": config["wandb"].get("project", "collm"),
             "name": run_name,
