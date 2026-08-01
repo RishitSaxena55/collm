@@ -14,7 +14,7 @@ import yaml
 import os
 import torchvision.transforms as T
 from eval import run_evaluation
-from accelerate import Accelerator
+from accelerate import Accelerator, DistributedDataParallelKwargs
 from utils.distributed import gather_embeddings
 
 def count_params(module):
@@ -110,7 +110,8 @@ def main():
         config = yaml.safe_load(f)
 
     mixed_precision = config['training'].get('mixed_precision', 'no')
-    accelerator = Accelerator(mixed_precision=mixed_precision)
+    ddp_kwargs = DistributedDataParallelKwargs(broadcast_buffers=False)
+    accelerator = Accelerator(mixed_precision=mixed_precision, kwargs_handlers=[ddp_kwargs])
     device = accelerator.device
     
     if accelerator.is_main_process:
