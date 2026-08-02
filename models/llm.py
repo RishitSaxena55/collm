@@ -121,7 +121,7 @@ class SFREmbeddingLLM(BaseLLM):
             for t in text_list_text_only:
                 prompts.append(self._get_prompt(t, "text_only"))
                 
-            tokenized = self.tokenizer(prompts, padding=True, truncation=True, return_tensors="pt")
+            tokenized = self.tokenizer(prompts, padding=True, truncation=True, max_length=77, return_tensors="pt")
             input_ids = tokenized.input_ids.to(device)
             attention_mask = tokenized.attention_mask.to(device)
             
@@ -169,6 +169,7 @@ class SFREmbeddingLLM(BaseLLM):
             prompts, 
             padding=True, 
             truncation=True, 
+            max_length=77,
             return_tensors="pt"
         )
         
