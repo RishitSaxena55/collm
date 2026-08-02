@@ -247,6 +247,10 @@ def main():
                 criterion.load_state_dict(checkpoint['criterion'], strict=False)
             if accelerator.is_main_process:
                 print("Successfully loaded pretrained weights (Optimizer/Step counts reset for new stage).")
+                
+            # CRITICAL MEMORY FIX: Delete the massive checkpoint dictionary from VRAM
+            del checkpoint
+            torch.cuda.empty_cache()
         except Exception as e:
             if accelerator.is_main_process:
                 print(f"Failed to load pretrained weights: {e}")
@@ -282,9 +286,15 @@ def main():
                         print(error_msg)
                     raise RuntimeError("Optimizer parameter mismatch. See above.")
             
-            global_step = checkpoint.get('global_step', 0)
-            best_recall_10 = checkpoint.get('best_recall_10', 0.0)
+            if 'global_step' in checkpoint:
+                global_step = checkpoint['global_step']
+            if 'best_recall_10' in checkpoint:
+                best_recall_10 = checkpoint.get('best_recall_10', 0.0)
             resumed_successfully = True
+            
+            # CRITICAL MEMORY FIX: Delete the massive checkpoint dictionary from VRAM
+            del checkpoint
+            torch.cuda.empty_cache()
         except Exception as e:
             if accelerator.is_main_process:
                 print(f"Failed to resume from checkpoint: {e}")
