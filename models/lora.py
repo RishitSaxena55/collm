@@ -22,7 +22,8 @@ class PEFTLoRA(BaseLoRA):
                  lora_alpha: int = 16, 
                  target_modules: list = ["q_proj", "k_proj", "v_proj", "o_proj"], 
                  lora_dropout: float = 0.1,
-                 task_type: str = None):
+                 task_type: str = None,
+                 tune: bool = True):
         """
         Concrete implementation of LoRA using Hugging Face's PEFT library.
         """
@@ -31,6 +32,7 @@ class PEFTLoRA(BaseLoRA):
         self.target_modules = target_modules
         self.lora_dropout = lora_dropout
         self.task_type = task_type
+        self.tune = tune
         
     def apply(self, model: nn.Module) -> nn.Module:
         try:
@@ -50,8 +52,13 @@ class PEFTLoRA(BaseLoRA):
         # Apply LoRA using PEFT
         peft_model = get_peft_model(model, config)
         
-        # Ensure gradients are required on the LoRA parameters
-        peft_model.train()
+        if not self.tune:
+            for param in peft_model.parameters():
+                param.requires_grad = False
+            peft_model.eval()
+        else:
+            # Ensure gradients are required on the LoRA parameters
+            peft_model.train()
         
         return peft_model
 
