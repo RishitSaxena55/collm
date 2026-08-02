@@ -154,7 +154,8 @@ def main():
                 vision_encoder, 
                 r=v_lora_cfg['r'], 
                 alpha=v_lora_cfg['alpha'], 
-                target_modules=v_lora_cfg['target_modules']
+                target_modules=v_lora_cfg['target_modules'],
+                tune=v_lora_cfg.get('tune', True)
             ).to(device)
     elif vision_model_name.startswith("open_clip:"):
         from models.vision_encoder import OpenCLIPVisionEncoder
@@ -166,7 +167,8 @@ def main():
                 vision_encoder, 
                 r=v_lora_cfg['r'], 
                 alpha=v_lora_cfg['alpha'], 
-                target_modules=v_lora_cfg['target_modules']
+                target_modules=v_lora_cfg['target_modules'],
+                tune=v_lora_cfg.get('tune', True)
             ).to(device)
     elif vision_model_name.startswith("blip:"):
         from models.vision_encoder import BLIPVisionEncoder

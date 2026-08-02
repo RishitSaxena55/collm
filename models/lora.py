@@ -104,7 +104,7 @@ class StandardLoRAParametrization(nn.Module):
         delta = (self.lora_B @ self.lora_A) * self.scaling
         return W + delta
 
-def apply_openclip_lora(model: nn.Module, r: int, alpha: int, target_modules: list):
+def apply_openclip_lora(model: nn.Module, r: int, alpha: int, target_modules: list, tune: bool = True):
     """
     Applies parametrization-based LoRA to an OpenCLIP model.
     """
@@ -121,12 +121,14 @@ def apply_openclip_lora(model: nn.Module, r: int, alpha: int, target_modules: li
             if target_q or target_k or target_v:
                 # OpenCLIP fuses QKV into in_proj_weight
                 if hasattr(module, "in_proj_weight") and module.in_proj_weight is not None:
-                    # Freeze the base weight first
                     module.in_proj_weight.requires_grad = False
                     param_lora = OpenCLIPLoRAParametrization(
                         module.in_proj_weight.shape, r=r, alpha=alpha, 
                         target_q=target_q, target_k=target_k, target_v=target_v
                     ).to(module.in_proj_weight.device)
+                    if not tune:
+                        param_lora.lora_A.requires_grad = False
+                        param_lora.lora_B.requires_grad = False
                     parametrize.register_parametrization(module, "in_proj_weight", param_lora)
                     
             if target_out:
@@ -136,6 +138,9 @@ def apply_openclip_lora(model: nn.Module, r: int, alpha: int, target_modules: li
                     std_lora = StandardLoRAParametrization(
                         module.out_proj.weight.shape, r=r, alpha=alpha
                     ).to(module.out_proj.weight.device)
+                    if not tune:
+                        std_lora.lora_A.requires_grad = False
+                        std_lora.lora_B.requires_grad = False
                     parametrize.register_parametrization(module.out_proj, "weight", std_lora)
                     
     return model
