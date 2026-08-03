@@ -280,7 +280,8 @@ def evaluate():
                 vision_encoder, 
                 r=v_lora_cfg['r'], 
                 alpha=v_lora_cfg['alpha'], 
-                target_modules=v_lora_cfg['target_modules']
+                target_modules=v_lora_cfg['target_modules'],
+                tune=v_lora_cfg.get('tune', True)
             ).to(device)
     elif vision_model_name.startswith("open_clip:"):
         from models.vision_encoder import OpenCLIPVisionEncoder
@@ -292,20 +293,33 @@ def evaluate():
                 vision_encoder, 
                 r=v_lora_cfg['r'], 
                 alpha=v_lora_cfg['alpha'], 
-                target_modules=v_lora_cfg['target_modules']
+                target_modules=v_lora_cfg['target_modules'],
+                tune=v_lora_cfg.get('tune', True)
             ).to(device)
     elif vision_model_name.startswith("blip:"):
         from models.vision_encoder import BLIPVisionEncoder
         model_name = vision_model_name.replace("blip:", "")
         if v_lora_cfg.get('enable', False):
-            vision_lora = PEFTLoRA(r=v_lora_cfg['r'], lora_alpha=v_lora_cfg['alpha'], target_modules=v_lora_cfg['target_modules'], lora_dropout=v_lora_cfg['dropout'])
+            vision_lora = PEFTLoRA(
+                r=v_lora_cfg['r'], 
+                lora_alpha=v_lora_cfg['alpha'], 
+                target_modules=v_lora_cfg['target_modules'], 
+                lora_dropout=v_lora_cfg['dropout'],
+                tune=v_lora_cfg.get('tune', True)
+            )
         else:
             vision_lora = None
         vision_encoder = BLIPVisionEncoder(model_name=model_name, freeze=True, lora_adapter=vision_lora).to(device)
         vision_dim = vision_encoder.model.config.hidden_size
     else:
         if v_lora_cfg.get('enable', False):
-            vision_lora = PEFTLoRA(r=v_lora_cfg['r'], lora_alpha=v_lora_cfg['alpha'], target_modules=v_lora_cfg['target_modules'], lora_dropout=v_lora_cfg['dropout'])
+            vision_lora = PEFTLoRA(
+                r=v_lora_cfg['r'], 
+                lora_alpha=v_lora_cfg['alpha'], 
+                target_modules=v_lora_cfg['target_modules'], 
+                lora_dropout=v_lora_cfg['dropout'],
+                tune=v_lora_cfg.get('tune', True)
+            )
         else:
             vision_lora = None
         vision_encoder = CLIPVisionEncoder(model_name=vision_model_name, freeze=True, lora_adapter=vision_lora).to(device)
@@ -330,7 +344,10 @@ def evaluate():
         checkpoint = torch.load(ckpt_path, map_location=device)
         vision_encoder.load_state_dict(checkpoint['vision_encoder'], strict=False)
         llm.load_state_dict(checkpoint['llm'], strict=False)
-        adapter.load_state_dict(checkpoint['adapter'])
+        adapter.load_state_dict(checkpoint['adapter'], strict=False)
+        
+        del checkpoint
+        torch.cuda.empty_cache()
     except Exception as e:
         print(f"Failed to load checkpoint. Error: {e}")
         return
@@ -361,7 +378,7 @@ def evaluate():
         import wandb
         
         # Construct dynamic base name to match train.py logic
-        base_name = config.get('wandb', {}).get('name', 'collm-eval')
+        base_name = config.get('wandb', {}).get('run_name', 'PTbb_coca_large')
         stage = config.get('training', {}).get('stage', 1)
         dataset_type_str = config.get('data', {}).get('dataset_type', 'llava')
         batch_size = config.get('training', {}).get('batch_size', 128)
@@ -370,7 +387,8 @@ def evaluate():
         run_name = f"{dynamic_base_name}_eval_{eval_dataset}"
         
         wandb_kwargs = {
-            "project": config["wandb"].get("project", "collm"),
+            "entity": config.get('wandb', {}).get('entity', "navjak-carnegie-mellon-university"),
+            "project": config.get('wandb', {}).get("project", "ret-collm"),
             "name": run_name,
             "config": config
         }
