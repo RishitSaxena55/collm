@@ -369,6 +369,23 @@ def evaluate():
             metrics_to_log[f"circo_val/Recall@{rank}"] = recall_atk[rank] * 100
         for aspect, map_at10 in semantic_map_at10.items():
             metrics_to_log[f"circo_val/Semantic_mAP@10_{aspect}"] = map_at10 * 100
+    elif eval_dataset == 'cirr':
+        from data.cirr_dataset import CIRRQueryDataset, CIRRPoolDataset
+        from cirr_utils import evaluate_cirr_dataset
+        
+        cirr_dir = config['data'].get('cirr_dataset_dir', '')
+        split = config['data'].get('eval_split', 'val')
+        
+        queries_dataset = CIRRQueryDataset(data_root=cirr_dir, split=split, transform=transform)
+        pool_dataset = CIRRPoolDataset(data_root=cirr_dir, split=split, transform=transform)
+        
+        queries_loader = DataLoader(queries_dataset, batch_size=config['training'].get('batch_size', 128), shuffle=False, num_workers=8)
+        pool_loader = DataLoader(pool_dataset, batch_size=config['training'].get('batch_size', 128), shuffle=False, num_workers=8)
+        
+        metrics = evaluate_cirr_dataset(vision_encoder, llm, adapter, queries_loader, pool_loader, device, split=split)
+        
+        for k, v in metrics.items():
+            metrics_to_log[f"cirr_{split}/{k}"] = v
     else:
         aggregated_metrics = run_evaluation(config, vision_encoder, llm, adapter, device, transform)
         for k, v in aggregated_metrics.items():
@@ -377,13 +394,18 @@ def evaluate():
     if config.get("wandb", {}).get("enable", False):
         import wandb
         
-        # Construct dynamic base name to match train.py logic
-        base_name = config.get('wandb', {}).get('run_name', 'PTbb_coca_large')
-        stage = config.get('training', {}).get('stage', 1)
-        dataset_type_str = config.get('data', {}).get('dataset_type', 'llava')
-        batch_size = config.get('training', {}).get('batch_size', 128)
-        
-        dynamic_base_name = f"{base_name}_stage{stage}_{dataset_type_str}_b{batch_size}"
+        # Construct dynamic base name: prioritize extracting the exact training folder name
+        checkpoint_dir = os.path.basename(os.path.dirname(ckpt_path)) if 'ckpt_path' in locals() else ""
+        if checkpoint_dir and checkpoint_dir not in ['outputs', 'outputs_2', 'outputs_shy', '.', '']:
+            dynamic_base_name = checkpoint_dir
+        else:
+            # Fallback to reconstructing it
+            base_name = config.get('wandb', {}).get('run_name', 'PTbb_coca_large')
+            stage = config.get('training', {}).get('stage', 1)
+            dataset_type_str = config.get('data', {}).get('dataset_type', 'llava')
+            batch_size = config.get('training', {}).get('batch_size', 128)
+            dynamic_base_name = f"{base_name}_stage{stage}_{dataset_type_str}_b{batch_size}"
+            
         run_name = f"{dynamic_base_name}_eval_{eval_dataset}"
         
         wandb_kwargs = {

@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from data.image_caption_dataset import ImageCaptionDataset, LLaVADataset
 from data.triplet_dataset import MTCIRDataset, FIQDataset
+from data.cirr_dataset import CIRRTrainDataset
 from models.vision_encoder import CLIPVisionEncoder, CoCaVisionEncoder
 from models.adapter import ImageAdapter
 from utils.synthesis import BatchSynthesizer
@@ -136,6 +137,8 @@ def main():
             dataset = MTCIRDataset(config['data']['train_dataset_file'], image_dir=config['data']['image_dir'], transform=transform, use_space_join=use_space_join)
         elif dataset_type == "fiq":
             dataset = FIQDataset(config['data']['train_dataset_file'], image_dir=config['data']['image_dir'], transform=transform)
+        elif dataset_type == "cirr":
+            dataset = CIRRTrainDataset(data_root=config['data']['cirr_dataset_dir'], split='train', transform=transform)
         else:
             raise ValueError(f"Unknown dataset_type for stage 2: {dataset_type}")
             
