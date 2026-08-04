@@ -12,6 +12,8 @@ from PIL import Image
 
 def resolve_cirr_root(data_root: str) -> Path:
     """Resolve data_root to the exact directory containing 'captions' and 'image_splits'."""
+    if not data_root:
+        raise ValueError("CRITICAL ERROR: 'cirr_dataset_dir' is missing from your YAML config file! Please add cirr_dataset_dir: /storage/users/anirban/shyam.marjit/cirr under 'data:'")
     root = Path(data_root)
     if (root / "captions").exists():
         return root

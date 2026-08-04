@@ -373,7 +373,10 @@ def evaluate():
         from data.cirr_dataset import CIRRQueryDataset, CIRRPoolDataset
         from cirr_utils import evaluate_cirr_dataset
         
-        cirr_dir = config['data'].get('cirr_dataset_dir', '')
+        # Allow falling back to circo_dataset_dir or eval_dataset_dir if cirr_dataset_dir isn't explicitly set
+        cirr_dir = config['data'].get('cirr_dataset_dir', 
+                   config['data'].get('circo_dataset_dir', 
+                   config['data'].get('eval_dataset_dir', '')))
         split = config['data'].get('eval_split', 'val')
         
         queries_dataset = CIRRQueryDataset(data_root=cirr_dir, split=split, transform=transform)
