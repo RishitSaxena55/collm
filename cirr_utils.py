@@ -66,7 +66,8 @@ def evaluate_cirr_dataset(
                 q_embs.append(emb.cpu())
                 q_target_ids.extend(batch["target_id"])
                 q_ref_ids.extend(batch["ref_id"])
-                q_subset_ids.extend(batch["subset_ids"])
+                for s_str in batch["subset_ids"]:
+                    q_subset_ids.append(s_str.split(","))
                 q_pairids.extend(batch["pairid"])
 
     q_embs = torch.cat(q_embs, dim=0)

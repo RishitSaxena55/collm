@@ -138,7 +138,7 @@ class CIRRQueryDataset(Dataset):
             "texts": caption,
             "target_id": target_id,
             "ref_id": ref_id,
-            "subset_ids": subset_ids,
+            "subset_ids": ",".join(subset_ids),
             "pairid": pairid
         }
 
