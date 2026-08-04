@@ -36,9 +36,7 @@ def evaluate_cirr_dataset(
             for batch in tqdm(pool_loader, desc=f"Encoding CIRR {split} gallery"):
                 images = batch["target_images"].to(device)
                 
-                v_i = vision_encoder(images)
-                v_prime_i = adapter(v_i)
-                embeds = llm(visual_embeds=v_prime_i, modality="vision")
+                embeds = vision_encoder(images)
                 embeds = torch.nn.functional.normalize(embeds, p=2, dim=1)
                 
                 pool_embs.append(embeds.cpu())
